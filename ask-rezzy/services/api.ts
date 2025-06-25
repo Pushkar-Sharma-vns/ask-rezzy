@@ -1,6 +1,6 @@
 // services/api.ts
 
-import { Question, Flashcard, ChatMessage, ApiResponse } from '@/types/index';
+import { Question, Flashcard, ChatMessage, ApiResponse, ChatApiResponse, ChatSession, ChatSessionDetail, ChatSessionsPaginatedResponse } from '@/types/index';
 
 const API_BASE_URL = __DEV__ ? 'http://localhost:8000' : 'https://your-production-api.com';
 
@@ -106,13 +106,18 @@ class ApiService {
     }
   }
 
-  async sendChatMessage(message: string): Promise<ApiResponse<ChatMessage>> {
+  async sendChatMessage(message: string, chatSessionId?: string): Promise<ApiResponse<{chatMessage: ChatMessage, sessionId: string, responseNumber: number}>> {
     try {
-      const response = await this.fetchWithErrorHandling<Question[]>(
+      const requestBody: any = { question: message };
+      if (chatSessionId) {
+        requestBody.chat_session_id = chatSessionId;
+      }
+
+      const response = await this.fetchWithErrorHandling<ChatApiResponse>(
         `${API_BASE_URL}/process_query`,
         {
           method: 'POST',
-          body: JSON.stringify({ question: message }),
+          body: JSON.stringify(requestBody),
         }
       );
 
@@ -120,21 +125,21 @@ class ApiService {
         throw new Error(response.error || 'Failed to get response');
       }
 
-      const data = response.data;
+      const { response: responseData, chat_session_id, response_number } = response.data;
       
       // Get both fact and response text
-      const firstItem = data.find(item => item.response) || data[0];
+      const firstItem = responseData.find(item => item.response) || responseData[0];
       const fact = firstItem?.fact || '';
       const responseText = firstItem?.response || 'Here is the information you requested.';
       
       // Combine fact and response for better context
       const combinedContent = fact && responseText && fact !== responseText 
-        ? `${fact}\n\n${responseText}`
+        ? `${fact} ${responseText}`
         : responseText || fact || 'Here is the information you requested.';
       
       // Separate items into different types based on content
-      const flashcards = data.filter(item => item.front && item.back);
-      const questions = data.filter(item => item.options && item.options.length > 0 && item.correct_option);
+      const flashcards = responseData.filter(item => item.front && item.back);
+      const questions = responseData.filter(item => item.options && item.options.length > 0 && item.correct_option);
       
       const botResponse: ChatMessage = {
         id: Date.now().toString(),
@@ -147,7 +152,11 @@ class ApiService {
 
       return {
         success: true,
-        data: botResponse,
+        data: {
+          chatMessage: botResponse,
+          sessionId: chat_session_id,
+          responseNumber: response_number
+        },
       };
     } catch (error) {
       console.error('Send chat message error:', error);
@@ -159,15 +168,15 @@ class ApiService {
   }
 
   // Simulate streaming response for real-time chat - now using real API
-  async *streamChatResponse(message: string): AsyncGenerator<string, void, unknown> {
+  async *streamChatResponse(message: string, chatSessionId?: string): AsyncGenerator<string, void, unknown> {
     try {
-      const response = await this.sendChatMessage(message);
+      const response = await this.sendChatMessage(message, chatSessionId);
       
       if (!response.success || !response.data) {
         throw new Error(response.error || 'Failed to get response');
       }
       
-      const content = response.data.content;
+      const content = response.data.chatMessage.content;
       
       // Simulate streaming by yielding chunks
       const words = content.split(' ');
@@ -237,6 +246,58 @@ class ApiService {
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Failed to get random study materials',
+      };
+    }
+  }
+
+  async getChatSessions(page: number = 1, limit: number = 10): Promise<ApiResponse<ChatSessionsPaginatedResponse>> {
+    try {
+      const response = await this.fetchWithErrorHandling<ChatSessionsPaginatedResponse>(
+        `${API_BASE_URL}/chat_sessions?page=${page}&limit=${limit}`,
+        {
+          method: 'GET',
+        }
+      );
+
+      if (!response.success || !response.data) {
+        throw new Error(response.error || 'Failed to get chat sessions');
+      }
+
+      return {
+        success: true,
+        data: response.data,
+      };
+    } catch (error) {
+      console.error('Get chat sessions error:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to get chat sessions',
+      };
+    }
+  }
+
+  async getChatSessionDetail(chatSessionId: string): Promise<ApiResponse<ChatSessionDetail>> {
+    try {
+      const response = await this.fetchWithErrorHandling<ChatSessionDetail>(
+        `${API_BASE_URL}/chat_sessions?chat_session_id=${chatSessionId}`,
+        {
+          method: 'GET',
+        }
+      );
+
+      if (!response.success || !response.data) {
+        throw new Error(response.error || 'Failed to get chat session detail');
+      }
+
+      return {
+        success: true,
+        data: response.data,
+      };
+    } catch (error) {
+      console.error('Get chat session detail error:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to get chat session detail',
       };
     }
   }

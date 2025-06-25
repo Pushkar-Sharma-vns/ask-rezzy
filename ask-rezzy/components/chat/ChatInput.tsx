@@ -86,8 +86,6 @@ const styles = StyleSheet.create({
     maxHeight: 100,
     marginRight: Spacing.sm,
     borderWidth: 0,
-    outline: 'none',
-    textDecorationLine: 'none',
   },
   sendButton: {
     backgroundColor: Colors.primary.blue,

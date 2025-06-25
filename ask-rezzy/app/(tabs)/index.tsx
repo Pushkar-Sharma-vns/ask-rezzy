@@ -8,6 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  ImageBackground,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -22,19 +23,55 @@ import { useChat } from '@/hooks/useChat';
 import { useQuiz } from '@/hooks/useQuiz'; 
 import { Colors, Spacing } from '@/constants/Colors';
 import { router } from 'expo-router';
+import { ChatSession } from '@/types/index';
+import apiService from '@/services/api';
 
-// Mock suggestions - replace with your actual data
-const mockSuggestions = [
-  { id: '1', text: 'What bone articulates with the femur?', category: 'topic' as const },
-  { id: '2', text: 'What topic is important to study for NEET-PG in Osteology?', category: 'question' as const },
-  { id: '3', text: 'Which best serves the purpose of osteology?', category: 'flashcard' as const },
-];
 
 export default function HomeScreen() {
   const scrollViewRef = useRef<ScrollView>(null);
   const [showMenu, setShowMenu] = useState(false);
+  const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(true);
   const { messages, isLoading, error, sendMessage, clearChat } = useChat();
   const { startQuiz } = useQuiz();
+
+  // Load chat sessions for popular searches
+  useEffect(() => {
+    loadPopularSearches();
+  }, []);
+
+  const loadPopularSearches = async () => {
+    try {
+      setSuggestionsLoading(true);
+      const response = await apiService.getChatSessions(1, 10);
+      
+      if (response.success && response.data) {
+        // Sort by response count (descending) and take top 3
+        const sortedSessions = response.data.chat_sessions
+          .sort((a, b) => b.response_count - a.response_count)
+          .slice(0, 3);
+        
+        setChatSessions(sortedSessions);
+      }
+    } catch (error) {
+      console.error('Failed to load popular searches:', error);
+    } finally {
+      setSuggestionsLoading(false);
+    }
+  };
+
+  // Convert chat sessions to suggestions format
+  const getPopularSuggestions = () => {
+    if (suggestionsLoading || chatSessions.length === 0) {
+      return [];
+    }
+    
+    return chatSessions.map((session, index) => ({
+      id: session.chat_session_id,
+      text: session.title,
+      category: 'topic' as const, // Default to topic category
+    }));
+  };
 
   const handleSendMessage = async (message: string) => {
     try {
@@ -50,7 +87,16 @@ export default function HomeScreen() {
 
   const handleSuggestionPress = (suggestion: string) => {
     try {
-      handleSendMessage(suggestion);
+      // Check if this is a chat session title from our popular searches
+      const matchingSession = chatSessions.find(session => session.title === suggestion);
+      
+      if (matchingSession) {
+        // Navigate to the existing chat session
+        router.push(`/(chat)/${matchingSession.chat_session_id}`);
+      } else {
+        // If not a chat session, send as a new message
+        handleSendMessage(suggestion);
+      }
     } catch (error) {
       console.error('Suggestion press error:', error);
     }
@@ -114,11 +160,19 @@ export default function HomeScreen() {
 
   const showWelcomeMessage = messages.length === 0;
 
+  // Use background image for welcome screen, gradient for chat
+  const BackgroundComponent = showWelcomeMessage ? ImageBackground : LinearGradient;
+  const backgroundProps = showWelcomeMessage 
+    ? { 
+        source: require('@/assets/background.png'), 
+        style: styles.container,
+        resizeMode: 'cover',
+        imageStyle: styles.backgroundImage
+      }
+    : { colors: ['rgba(22, 122, 223, 0.01)', 'rgba(22, 122, 223, 0.05)'], style: styles.container };
+
   return (
-    <LinearGradient
-      colors={['rgba(22, 122, 223, 0.01)', 'rgba(22, 122, 223, 0.05)']}
-      style={styles.container}
-    >
+    <BackgroundComponent {...backgroundProps}>
       <SafeAreaView style={styles.safeArea}>
         <Header 
           title="Ask Rezzy" 
@@ -162,8 +216,9 @@ export default function HomeScreen() {
               />
               
               <SearchSuggestions
-                suggestions={mockSuggestions}
+                suggestions={getPopularSuggestions()}
                 onSuggestionPress={handleSuggestionPress}
+                title="POPULAR SEARCHES"
               />
             </View>
           )}
@@ -184,13 +239,17 @@ export default function HomeScreen() {
         />
       </KeyboardAvoidingView>
     </SafeAreaView>
-    </LinearGradient>
+    </BackgroundComponent>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  backgroundImage: {
+    width: '100%',
+    height: '100%',
   },
   safeArea: {
     flex: 1,

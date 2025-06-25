@@ -1,12 +1,14 @@
 
-import { useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ChatMessage, Question, Flashcard } from '@/types/index';
 import apiService from '@/services/api';
 
 export const useChat = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [chatSessionId, setChatSessionId] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const sendMessageMutation = useMutation({
@@ -25,12 +27,20 @@ export const useChat = () => {
         // Get bot response with questions/flashcards in one call
         setIsStreaming(true);
         
-        const response = await apiService.sendChatMessage(message);
+        const response = await apiService.sendChatMessage(message, chatSessionId || undefined);
         
         if (response.success && response.data) {
-          setMessages(prev => [...prev, response.data]);
+          const { chatMessage, sessionId, responseNumber } = response.data;
+          
+          // Update chat session ID if it's a new session or changed
+          if (sessionId !== chatSessionId) {
+            setChatSessionId(sessionId);
+            await AsyncStorage.setItem('chat_session_id', sessionId);
+          }
+          
+          setMessages(prev => [...prev, chatMessage]);
           setIsStreaming(false);
-          return response.data;
+          return chatMessage;
         } else {
           setIsStreaming(false);
           throw new Error(response.error || 'Failed to get response');
@@ -59,10 +69,29 @@ export const useChat = () => {
     }
   }, [sendMessageMutation]);
 
-  const clearChat = useCallback(() => {
+  const clearChat = useCallback(async () => {
     setMessages([]);
+    setChatSessionId(null);
+    await AsyncStorage.removeItem('chat_session_id');
     queryClient.clear();
   }, [queryClient]);
+
+  // Load chat session ID from storage on hook initialization
+  const loadChatSession = useCallback(async () => {
+    try {
+      const storedSessionId = await AsyncStorage.getItem('chat_session_id');
+      if (storedSessionId) {
+        setChatSessionId(storedSessionId);
+      }
+    } catch (error) {
+      console.error('Failed to load chat session:', error);
+    }
+  }, []);
+
+  // Load session on first render
+  React.useEffect(() => {
+    loadChatSession();
+  }, [loadChatSession]);
 
   return {
     messages,

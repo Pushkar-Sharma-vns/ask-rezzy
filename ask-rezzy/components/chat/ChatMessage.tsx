@@ -47,7 +47,12 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, onStartQuiz }
           {message.flashcards && message.flashcards.length > 0 && (
             <View style={styles.flashcardsContainer}>
               {message.flashcards.map((flashcard, index) => (
-                <FlashCard key={index} flashcard={flashcard} />
+                <FlashCard 
+                  key={index} 
+                  flashcard={flashcard} 
+                  currentIndex={index}
+                  totalCount={message.flashcards!.length}
+                />
               ))}
             </View>
           )}
