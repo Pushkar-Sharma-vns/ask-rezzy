@@ -40,6 +40,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           multiline
           maxLength={500}
           editable={!disabled}
+          selectionColor="transparent"
+          underlineColorAndroid="transparent"
+          textAlignVertical="top"
+          cursorColor="transparent"
+          selection={{start: message.length, end: message.length}}
         />
         <TouchableOpacity
           style={[styles.sendButton, (!message.trim() || disabled) && styles.sendButtonDisabled]}
@@ -80,6 +85,9 @@ const styles = StyleSheet.create({
     color: Colors.text.primary,
     maxHeight: 100,
     marginRight: Spacing.sm,
+    borderWidth: 0,
+    outline: 'none',
+    textDecorationLine: 'none',
   },
   sendButton: {
     backgroundColor: Colors.primary.blue,

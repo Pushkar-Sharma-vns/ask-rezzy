@@ -1,25 +1,27 @@
 // types/index.ts
 
 export interface Question {
-  id: string;
-  topic: string;
-  subtopic: string;
+  fact: string;
+  response: string;
   question: string;
-  type: "multiple_choice" | "true_false" | "short_answer";
-  options?: string[];
-  correct_answer: string;
-  difficulty: "easy" | "medium" | "hard";
-  tags: string[];
+  options: string[];
+  correct_option: string;
+  front: string;
+  back: string;
+  subject: string;
+  topic: string;
 }
 
 export interface Flashcard {
-  id: string;
-  topic: string;
-  subtopic: string;
+  fact: string;
+  response: string;
+  question: string;
+  options: string[];
+  correct_option: string;
   front: string;
   back: string;
-  difficulty: "easy" | "medium" | "hard";
-  tags: string[];
+  subject: string;
+  topic: string;
 }
 
 export interface ChatMessage {

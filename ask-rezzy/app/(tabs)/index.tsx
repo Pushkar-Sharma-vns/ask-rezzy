@@ -10,6 +10,7 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Header } from '@/components/common/Header';
 import { SearchSuggestions } from '@/components/common/SearchSuggestions';
 import { ActionButtons } from '@/components/common/ActionButtons';
@@ -91,7 +92,7 @@ export default function HomeScreen() {
 
   const handleFindPYQs = () => {
     try {
-      handleSendMessage('Give me 5 PYQs around anatomy topic');
+      handleSendMessage('Give me 5 PYQs about anatomy');
     } catch (error) {
       console.error('Find PYQs error:', error);
     }
@@ -99,7 +100,7 @@ export default function HomeScreen() {
 
   const handleFlashcards = () => {
     try {
-      handleSendMessage('Give me 5 flashcards around anatomy topic');
+      handleSendMessage('Give me 5 flashcards about anatomy');
     } catch (error) {
       console.error('Flashcards error:', error);
     }
@@ -114,24 +115,28 @@ export default function HomeScreen() {
   const showWelcomeMessage = messages.length === 0;
 
   return (
-    <SafeAreaView style={styles.container}>
-      <Header 
-        title="Ask Rezzy" 
-        onMenuPress={handleMenuPress}
-      />
-      
-      <MenuModal
-        visible={showMenu}
-        onClose={() => setShowMenu(false)}
-        onStartNewChat={handleStartNewChat}
-        onViewPastChats={handleViewPastChats}
-      />
-      
-      <KeyboardAvoidingView 
-        style={styles.content}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-      >
+    <LinearGradient
+      colors={['rgba(22, 122, 223, 0.01)', 'rgba(22, 122, 223, 0.05)']}
+      style={styles.container}
+    >
+      <SafeAreaView style={styles.safeArea}>
+        <Header 
+          title="Ask Rezzy" 
+          onMenuPress={handleMenuPress}
+        />
+        
+        <MenuModal
+          visible={showMenu}
+          onClose={() => setShowMenu(false)}
+          onStartNewChat={handleStartNewChat}
+          onViewPastChats={handleViewPastChats}
+        />
+        
+        <KeyboardAvoidingView 
+          style={styles.content}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+        >
         <ScrollView
           ref={scrollViewRef}
           style={styles.messagesContainer}
@@ -179,13 +184,17 @@ export default function HomeScreen() {
         />
       </KeyboardAvoidingView>
     </SafeAreaView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background.primary,
+  },
+  safeArea: {
+    flex: 1,
+    backgroundColor: 'transparent',
   },
   content: {
     flex: 1,

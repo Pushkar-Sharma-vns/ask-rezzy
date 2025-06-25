@@ -22,54 +22,19 @@ export const useChat = () => {
         // Add user message immediately
         setMessages(prev => [...prev, userMessage]);
 
-        // Start streaming bot response
+        // Get bot response with questions/flashcards in one call
         setIsStreaming(true);
         
-        const botMessage: ChatMessage = {
-          id: (Date.now() + 1).toString(),
-          type: 'bot',
-          content: '',
-          timestamp: new Date(),
-          isStreaming: true,
-        };
-
-        setMessages(prev => [...prev, botMessage]);
-
-        // Simulate streaming response
-        let streamedContent = '';
-        for await (const chunk of apiService.streamChatResponse(message)) {
-          streamedContent = chunk;
-          setMessages(prev => 
-            prev.map(msg => 
-              msg.id === botMessage.id 
-                ? { ...msg, content: streamedContent }
-                : msg
-            )
-          );
+        const response = await apiService.sendChatMessage(message);
+        
+        if (response.success && response.data) {
+          setMessages(prev => [...prev, response.data]);
+          setIsStreaming(false);
+          return response.data;
+        } else {
+          setIsStreaming(false);
+          throw new Error(response.error || 'Failed to get response');
         }
-
-        // Fetch related questions/flashcards
-        const [questionsResponse, flashcardsResponse] = await Promise.all([
-          apiService.searchQuestions(message),
-          apiService.searchFlashcards(message)
-        ]);
-
-        // Update final message with questions and flashcards
-        setMessages(prev => 
-          prev.map(msg => 
-            msg.id === botMessage.id 
-              ? { 
-                  ...msg, 
-                  isStreaming: false,
-                  questions: questionsResponse.success ? questionsResponse.data : [],
-                  flashcards: flashcardsResponse.success ? flashcardsResponse.data : []
-                }
-              : msg
-          )
-        );
-
-        setIsStreaming(false);
-        return botMessage;
       } catch (error) {
         setIsStreaming(false);
         throw new Error(error instanceof Error ? error.message : 'Failed to send message');

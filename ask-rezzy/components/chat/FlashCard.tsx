@@ -22,7 +22,7 @@ export const FlashCard: React.FC<FlashCardProps> = ({ flashcard }) => {
 
   return (
     <TouchableOpacity onPress={handleFlip} style={styles.container}>
-      <Card style={isFlipped ? [styles.card, styles.flippedCard] : styles.card}>
+      <Card style={StyleSheet.flatten([styles.card, isFlipped && styles.flippedCard])}>
         <View style={styles.header}>
           <Text style={styles.title}>FLASHCARD {isFlipped ? '2' : '1'} OF 5</Text>
         </View>
@@ -51,6 +51,9 @@ export const FlashCard: React.FC<FlashCardProps> = ({ flashcard }) => {
 const styles = StyleSheet.create({
   container: {
     marginVertical: Spacing.xs,
+    alignSelf: 'center',
+    width: '100%',
+    maxWidth: 400,
   },
   card: {
     minHeight: 200,

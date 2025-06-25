@@ -79,7 +79,7 @@ export const QuizCard: React.FC<QuizCardProps> = ({
         </View>
         
         {questions.slice(0, 1).map((question, index) => (
-          <View key={question.id} style={styles.questionPreview}>
+          <View key={index} style={styles.questionPreview}>
             <Text style={styles.questionText}>
               {question.question}
             </Text>
@@ -114,9 +114,12 @@ export const QuizCard: React.FC<QuizCardProps> = ({
           <View style={styles.optionsContainer}>
             {currentQuestion.options.map((option, index) => {
               const label = String.fromCharCode(65 + index); // A, B, C, D
-              const isSelected = selectedAnswers[currentQuestion.id] === option;
-              const isCorrect = showResults[currentQuestion.id] && option === currentQuestion.correct_answer;
-              const isIncorrect = showResults[currentQuestion.id] && isSelected && option !== currentQuestion.correct_answer;
+              const questionKey = currentQuestion.question;
+              const isSelected = selectedAnswers[questionKey] === option;
+              const correctOptionIndex = parseInt(currentQuestion.correct_option) - 1; // Convert 1/2/3/4 to 0/1/2/3
+              const correctOption = currentQuestion.options[correctOptionIndex];
+              const isCorrect = showResults[questionKey] && option === correctOption;
+              const isIncorrect = showResults[questionKey] && isSelected && option !== correctOption;
               
               return (
                 <QuizOption
@@ -126,8 +129,8 @@ export const QuizCard: React.FC<QuizCardProps> = ({
                   selected={isSelected}
                   correct={isCorrect}
                   incorrect={isIncorrect}
-                  onPress={() => handleOptionSelect(currentQuestion.id, option)}
-                  disabled={showResults[currentQuestion.id]}
+                  onPress={() => handleOptionSelect(currentQuestion.question, option)}
+                  disabled={showResults[currentQuestion.question]}
                 />
               );
             })}
@@ -163,10 +166,16 @@ export const QuizCard: React.FC<QuizCardProps> = ({
 const styles = StyleSheet.create({
   container: {
     marginTop: Spacing.sm,
+    alignSelf: 'center',
+    width: '100%',
+    maxWidth: 400,
   },
   interactiveContainer: {
     marginTop: Spacing.sm,
     padding: Spacing.lg,
+    alignSelf: 'center',
+    width: '100%',
+    maxWidth: 400,
   },
   header: {
     flexDirection: 'row',

@@ -1,18 +1,8 @@
 // services/api.ts
 
 import { Question, Flashcard, ChatMessage, ApiResponse } from '@/types/index';
-import { 
-  mockQuestions, 
-  mockFlashcards, 
-  mockSearchSuggestions,
-  getQuestionsByTopic,
-  getFlashcardsByTopic,
-  getRandomQuestions,
-  getRandomFlashcards,
-  searchContent
-} from './mockData';
 
-const API_BASE_URL = __DEV__ ? 'http://localhost:3000/api' : 'https://your-production-api.com/api';
+const API_BASE_URL = __DEV__ ? 'http://localhost:8000' : 'https://your-production-api.com';
 
 class ApiService {
   private async fetchWithErrorHandling<T>(
@@ -20,13 +10,19 @@ class ApiService {
     options?: RequestInit
   ): Promise<ApiResponse<T>> {
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
       const response = await fetch(url, {
         headers: {
           'Content-Type': 'application/json',
           ...options?.headers,
         },
+        signal: controller.signal,
         ...options,
       });
+
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -48,30 +44,22 @@ class ApiService {
 
   async searchQuestions(query: string): Promise<ApiResponse<Question[]>> {
     try {
-      // Use mock data with intelligent filtering
-      let questions: Question[] = [];
-      
-      if (query.toLowerCase().includes('anatomy') || query.toLowerCase().includes('bone')) {
-        questions = getQuestionsByTopic('anatomy');
-      } else if (query.toLowerCase().includes('pyq') || query.toLowerCase().includes('question')) {
-        questions = getRandomQuestions(5);
-      } else if (query.toLowerCase().includes('osteology')) {
-        questions = getQuestionsByTopic('osteology');
-      } else if (query.toLowerCase().includes('fracture')) {
-        questions = getQuestionsByTopic('fracture');
-      } else if (query.toLowerCase().includes('joint') || query.toLowerCase().includes('tmj')) {
-        questions = getQuestionsByTopic('joint');
-      } else {
-        // General search
-        const searchResults = searchContent(query);
-        questions = searchResults.questions.length > 0 ? searchResults.questions : getRandomQuestions(5);
+      const response = await this.fetchWithErrorHandling<Question[]>(
+        `${API_BASE_URL}/process_query`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ question: query }),
+        }
+      );
+
+      if (!response.success || !response.data) {
+        throw new Error(response.error || 'Failed to get response');
       }
 
-      // Limit to 5 questions max
-      questions = questions.slice(0, 5);
-
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Filter only questions (items with options and correct_option)
+      const questions = response.data.filter(item => 
+        item.options && item.options.length > 0 && item.correct_option
+      );
       
       return {
         success: true,
@@ -88,30 +76,22 @@ class ApiService {
 
   async searchFlashcards(query: string): Promise<ApiResponse<Flashcard[]>> {
     try {
-      // Use mock data with intelligent filtering
-      let flashcards: Flashcard[] = [];
-      
-      if (query.toLowerCase().includes('anatomy') || query.toLowerCase().includes('bone')) {
-        flashcards = getFlashcardsByTopic('anatomy');
-      } else if (query.toLowerCase().includes('flashcard')) {
-        flashcards = getRandomFlashcards(5);
-      } else if (query.toLowerCase().includes('osteology')) {
-        flashcards = getFlashcardsByTopic('osteology');
-      } else if (query.toLowerCase().includes('joint')) {
-        flashcards = getFlashcardsByTopic('joint');
-      } else if (query.toLowerCase().includes('neet')) {
-        flashcards = getFlashcardsByTopic('NEET-PG');
-      } else {
-        // General search
-        const searchResults = searchContent(query);
-        flashcards = searchResults.flashcards.length > 0 ? searchResults.flashcards : getRandomFlashcards(5);
+      const response = await this.fetchWithErrorHandling<Flashcard[]>(
+        `${API_BASE_URL}/process_query`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ question: query }),
+        }
+      );
+
+      if (!response.success || !response.data) {
+        throw new Error(response.error || 'Failed to get response');
       }
 
-      // Limit to 5 flashcards max
-      flashcards = flashcards.slice(0, 5);
-
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 300));
+      // Filter only flashcards (items with front and back)
+      const flashcards = response.data.filter(item => 
+        item.front && item.back
+      );
       
       return {
         success: true,
@@ -128,37 +108,38 @@ class ApiService {
 
   async sendChatMessage(message: string): Promise<ApiResponse<ChatMessage>> {
     try {
-      // Mock streaming response with intelligent content
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Determine response type based on message content
-      let responseContent = '';
-      let questions: Question[] = [];
-      let flashcards: Flashcard[] = [];
+      const response = await this.fetchWithErrorHandling<Question[]>(
+        `${API_BASE_URL}/process_query`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ question: message }),
+        }
+      );
 
-      if (message.toLowerCase().includes('pyq') || message.toLowerCase().includes('question')) {
-        responseContent = 'The bones that articulate with the femur are the tibia on the distal end of the femur and the ilium, ischium, and pubis. Here are 5 questions around it!';
-        const searchResult = await this.searchQuestions(message);
-        questions = searchResult.success ? searchResult.data || [] : [];
-      } else if (message.toLowerCase().includes('flashcard')) {
-        responseContent = 'The bones that articulate with the femur are the tibia on the distal end of the femur and the ilium, ischium, and pubis. Here are 5 flashcards around it!';
-        const searchResult = await this.searchFlashcards(message);
-        flashcards = searchResult.success ? searchResult.data || [] : [];
-      } else {
-        // General query - provide both questions and flashcards
-        responseContent = 'The bones that articulate with the femur are the tibia on the distal end of the femur and the ilium, ischium, and pubis. Here are some study materials!';
-        const [questionsResult, flashcardsResult] = await Promise.all([
-          this.searchQuestions(message),
-          this.searchFlashcards(message)
-        ]);
-        questions = questionsResult.success ? questionsResult.data || [] : [];
-        flashcards = flashcardsResult.success ? flashcardsResult.data || [] : [];
+      if (!response.success || !response.data) {
+        throw new Error(response.error || 'Failed to get response');
       }
 
+      const data = response.data;
+      
+      // Get both fact and response text
+      const firstItem = data.find(item => item.response) || data[0];
+      const fact = firstItem?.fact || '';
+      const responseText = firstItem?.response || 'Here is the information you requested.';
+      
+      // Combine fact and response for better context
+      const combinedContent = fact && responseText && fact !== responseText 
+        ? `${fact}\n\n${responseText}`
+        : responseText || fact || 'Here is the information you requested.';
+      
+      // Separate items into different types based on content
+      const flashcards = data.filter(item => item.front && item.back);
+      const questions = data.filter(item => item.options && item.options.length > 0 && item.correct_option);
+      
       const botResponse: ChatMessage = {
         id: Date.now().toString(),
         type: 'bot',
-        content: responseContent,
+        content: combinedContent,
         timestamp: new Date(),
         questions: questions.length > 0 ? questions : undefined,
         flashcards: flashcards.length > 0 ? flashcards : undefined,
@@ -177,28 +158,19 @@ class ApiService {
     }
   }
 
-  // Simulate streaming response for real-time chat
+  // Simulate streaming response for real-time chat - now using real API
   async *streamChatResponse(message: string): AsyncGenerator<string, void, unknown> {
     try {
-      let response = '';
+      const response = await this.sendChatMessage(message);
       
-      // Generate contextual response based on message
-      if (message.toLowerCase().includes('pyq') || message.toLowerCase().includes('question')) {
-        response = 'The bones that articulate with the femur are the tibia on the distal end of the femur and the ilium, ischium, and pubis. Here are 5 questions around it!';
-      } else if (message.toLowerCase().includes('flashcard')) {
-        response = 'The bones that articulate with the femur are the tibia on the distal end of the femur and the ilium, ischium, and pubis. Here are 5 flashcards around it!';
-      } else if (message.toLowerCase().includes('anatomy')) {
-        response = 'Great! Let me help you with anatomy topics. The skeletal system is fundamental to understanding human anatomy.';
-      } else if (message.toLowerCase().includes('osteology')) {
-        response = 'Osteology is the study of bones. Key topics include bone formation, remodeling, and pathology.';
-      } else if (message.toLowerCase().includes('neet')) {
-        response = 'For NEET-PG preparation, focus on high-yield topics in anatomy, physiology, and pathology.';
-      } else {
-        response = `Here's what I found related to "${message}": The bones that articulate with the femur are the tibia on the distal end of the femur and the ilium, ischium, and pubis.`;
+      if (!response.success || !response.data) {
+        throw new Error(response.error || 'Failed to get response');
       }
       
+      const content = response.data.content;
+      
       // Simulate streaming by yielding chunks
-      const words = response.split(' ');
+      const words = content.split(' ');
       for (let i = 0; i < words.length; i++) {
         await new Promise(resolve => setTimeout(resolve, 50));
         yield words.slice(0, i + 1).join(' ');
@@ -209,15 +181,18 @@ class ApiService {
     }
   }
 
-  // Get search suggestions
-  async getSearchSuggestions(): Promise<ApiResponse<typeof mockSearchSuggestions>> {
+  // Get search suggestions - static suggestions for now
+  async getSearchSuggestions(): Promise<ApiResponse<Array<{id: string, text: string, category: string}>>> {
     try {
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 200));
+      const suggestions = [
+        { id: '1', text: 'What bone articulates with the femur?', category: 'topic' },
+        { id: '2', text: 'What topic is important to study for NEET-PG in Osteology?', category: 'question' },
+        { id: '3', text: 'Give me 5 flashcards around anatomy topic', category: 'flashcard' },
+      ];
       
       return {
         success: true,
-        data: mockSearchSuggestions,
+        data: suggestions,
       };
     } catch (error) {
       console.error('Get search suggestions error:', error);
@@ -228,18 +203,11 @@ class ApiService {
     }
   }
 
-  // Get questions by difficulty
-  async getQuestionsByDifficulty(difficulty: 'easy' | 'medium' | 'hard'): Promise<ApiResponse<Question[]>> {
+  // Get questions by difficulty - uses API now
+  async getQuestionsByDifficulty(_difficulty: 'easy' | 'medium' | 'hard'): Promise<ApiResponse<Question[]>> {
     try {
-      const filteredQuestions = mockQuestions.filter(q => q.difficulty === difficulty);
-      
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
-      return {
-        success: true,
-        data: filteredQuestions,
-      };
+      // Since API doesn't support difficulty filtering, get general questions
+      return await this.searchQuestions('Give me practice questions');
     } catch (error) {
       console.error('Get questions by difficulty error:', error);
       return {
@@ -252,15 +220,17 @@ class ApiService {
   // Get random study materials
   async getRandomStudyMaterials(): Promise<ApiResponse<{ questions: Question[], flashcards: Flashcard[] }>> {
     try {
-      const questions = getRandomQuestions(3);
-      const flashcards = getRandomFlashcards(3);
-      
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 400));
+      const [questionsResult, flashcardsResult] = await Promise.all([
+        this.searchQuestions('Give me practice questions'),
+        this.searchFlashcards('Give me study flashcards')
+      ]);
       
       return {
         success: true,
-        data: { questions, flashcards },
+        data: { 
+          questions: questionsResult.success ? questionsResult.data || [] : [], 
+          flashcards: flashcardsResult.success ? flashcardsResult.data || [] : []
+        },
       };
     } catch (error) {
       console.error('Get random study materials error:', error);

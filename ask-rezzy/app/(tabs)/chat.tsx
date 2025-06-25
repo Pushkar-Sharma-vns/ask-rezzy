@@ -9,10 +9,13 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Header } from '@/components/common/Header';
+import { MenuModal } from '@/components/common/MenuModal';
 import { Card } from '@/components/ui/Card';
 import { Colors, Spacing, FontSize } from '@/constants/Colors';
+import { router } from 'expo-router';
 
 // Mock chat history - replace with actual data
 const mockChatHistory = [
@@ -62,6 +65,7 @@ const mockChatHistory = [
 
 export default function ChatHistoryScreen() {
   const [chatHistory, setChatHistory] = useState(mockChatHistory);
+  const [showMenu, setShowMenu] = useState(false);
 
   const handleChatPress = (chatId: string) => {
     try {
@@ -94,14 +98,53 @@ export default function ChatHistoryScreen() {
     }
   };
 
+  const handleMenuPress = () => {
+    try {
+      setShowMenu(true);
+    } catch (error) {
+      console.error('Menu press error:', error);
+    }
+  };
+
+  const handleStartNewChat = () => {
+    try {
+      router.push('/(tabs)');
+      setShowMenu(false);
+    } catch (error) {
+      console.error('Start new chat error:', error);
+    }
+  };
+
+  const handleViewPastChats = () => {
+    try {
+      setShowMenu(false);
+    } catch (error) {
+      console.error('View past chats error:', error);
+    }
+  };
+
   return (
-    <SafeAreaView style={styles.container}>
-      <Header title="Past Chats" />
-      
-      <ScrollView 
-        style={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
+    <LinearGradient
+      colors={['rgba(22, 122, 223, 0.01)', 'rgba(22, 122, 223, 0.05)']}
+      style={styles.container}
+    >
+      <SafeAreaView style={styles.safeArea}>
+        <Header 
+          title="Past Chats" 
+          onMenuPress={handleMenuPress}
+        />
+        
+        <MenuModal
+          visible={showMenu}
+          onClose={() => setShowMenu(false)}
+          onStartNewChat={handleStartNewChat}
+          onViewPastChats={handleViewPastChats}
+        />
+        
+        <ScrollView 
+          style={styles.content}
+          showsVerticalScrollIndicator={false}
+        >
         {chatHistory.length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons 
@@ -156,13 +199,17 @@ export default function ChatHistoryScreen() {
         )}
       </ScrollView>
     </SafeAreaView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background.primary,
+  },
+  safeArea: {
+    flex: 1,
+    backgroundColor: 'transparent',
   },
   content: {
     flex: 1,
