@@ -2,24 +2,6 @@
 
 A React Native mobile application for interactive learning with AI-powered chat, flashcards, and quizzes.
 
-## Tech Stack
-
-- **React Native** - Mobile development framework
-- **Expo** - Development platform and tools
-- **TypeScript** - Type-safe JavaScript
-- **Expo Router** - File-based navigation
-- **React Query** - Data fetching and caching
-- **AsyncStorage** - Local data persistence
-
-## Features
-
-- AI-powered chat interface
-- Interactive flashcards
-- Quiz functionality
-- Chat session history
-- Popular searches based on chat history
-- Dynamic background themes
-
 ## Installation
 
 ### Prerequisites
@@ -51,6 +33,25 @@ npm start
 # For development and testing on web(Recommended)
 npx expo start --web
 ```
+
+## Tech Stack
+
+- **React Native** - Mobile development framework
+- **Expo** - Development platform and tools
+- **TypeScript** - Type-safe JavaScript
+- **Expo Router** - File-based navigation
+- **React Query** - Data fetching and caching
+- **AsyncStorage** - Local data persistence
+
+## Features
+
+- AI-powered chat interface
+- Interactive flashcards
+- Quiz functionality
+- Chat session history
+- Popular searches based on chat history
+- Dynamic background themes
+
 
 ## Project Structure
 
